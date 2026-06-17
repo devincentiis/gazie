@@ -125,6 +125,7 @@ $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $header = substr($response, 0, $header_size);
 $body = substr($response, $header_size);
 
+
 // Controlla il codice HTTP e mostra un messaggio con l'icona appropriata
 echo "📡 Risposta invio: ";
 if ($http_code == 200) {
@@ -247,26 +248,69 @@ if ($http_code >= 200 && $http_code < 300) {
       echo "<strong>Messaggio:</strong><br><div style='white-space:pre-wrap;'>$formattedMsg</div>";
       echo "</div>";
     } else {
-        // Prova a trovare un messaggio di errore leggibile nel corpo HTML
-        $dom = new DOMDocument();
-        libxml_use_internal_errors(true);
-        $dom->loadHTML($body);
-        libxml_clear_errors();
 
-        $h1 = $dom->getElementsByTagName('h1');
-        $h3 = $dom->getElementsByTagName('h3');
+		// Nessun contenuto restituito
+		if (empty(trim($body))) {
 
-        $errorTitle = ($h1->length > 0) ? trim($h1->item(0)->textContent) : '';
-        $errorDescription = ($h3->length > 0) ? trim($h3->item(0)->textContent) : '';
+			echo "<div style='color:red;border:1px solid red;padding:10px;margin-top:20px;'>";
 
-        if ($errorTitle || $errorDescription) {
-            echo "🔒 Dettaglio: ";
-            if ($errorTitle) echo "$errorTitle<br>";
-            if ($errorDescription) echo "$errorDescription<br>";
-        } else {
-            echo "📄 Corpo risposta:<br><pre style='white-space:pre-wrap; background:#eee; padding:10px; border:1px solid #ccc;'>" . htmlspecialchars($body) . "</pre>";
-        }
-    }
+			switch ($http_code) {
+				case 401:
+					echo "<strong>❌ Errore di autenticazione (HTTP 401)</strong><br>";
+					echo "Il server ha rifiutato le credenziali di accesso al web service.";
+					echo "<pre>";
+					echo "USER=".$username."\n";
+					//echo "PASS=".$password."\n";
+					echo "ENDPOINT=".$wsdl."\n";
+					echo "</pre>";
+					break;
+
+				case 403:
+					echo "<strong>❌ Accesso negato (HTTP 403)</strong><br>";
+					echo "L'utente è autenticato ma non autorizzato ad utilizzare il servizio.";
+					break;
+
+				case 404:
+					echo "<strong>❌ Endpoint non trovato (HTTP 404)</strong><br>";
+					echo "L'indirizzo del web service potrebbe essere cambiato.";
+					break;
+
+				case 500:
+					echo "<strong>❌ Errore interno del server (HTTP 500)</strong><br>";
+					echo "Il web service ha restituito un errore senza dettagli.";
+					break;
+
+				default:
+					echo "<strong>❌ Errore HTTP $http_code</strong><br>";
+					echo "Il server non ha restituito alcun dettaglio aggiuntivo.";
+			}
+
+			echo "</div>";
+
+		} else {
+
+			// Prova a trovare un messaggio di errore leggibile nel corpo HTML
+			$dom = new DOMDocument();
+			libxml_use_internal_errors(true);
+			$dom->loadHTML($body);
+			libxml_clear_errors();
+
+			$h1 = $dom->getElementsByTagName('h1');
+			$h3 = $dom->getElementsByTagName('h3');
+
+			$errorTitle = ($h1->length > 0) ? trim($h1->item(0)->textContent) : '';
+			$errorDescription = ($h3->length > 0) ? trim($h3->item(0)->textContent) : '';
+
+			if ($errorTitle || $errorDescription) {
+				echo "🔒 Dettaglio: ";
+				if ($errorTitle) echo "$errorTitle<br>";
+				if ($errorDescription) echo "$errorDescription<br>";
+			} else {
+				echo "📄 Corpo risposta:<br><pre style='white-space:pre-wrap; background:#eee; padding:10px; border:1px solid #ccc;'>" . htmlspecialchars($body) . "</pre>";
+			}
+		}
+	}
+	
 }
 
 curl_close($ch);

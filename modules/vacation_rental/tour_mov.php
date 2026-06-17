@@ -348,7 +348,7 @@ if (isset($_GET['XML']) and $msg == "") {
     //echo "<br><br>Ospiti:<pre>",print_r($dati);
     }else{
       echo "<br>ERRORE: manca il file del checkin";exit;
-    }
+    }    
     $testate[]=$row['id_tesbro'];
 	$nall=0; // progressivo questura ospiti in alloggio
     foreach($dati as $guest){// per ogni ospite presente nel file del pre checkin
@@ -380,33 +380,41 @@ if (isset($_GET['XML']) and $msg == "") {
       $file_polstat[$n].=str_pad($guest['nome'], 30);// nome
       $file_polstat[$n].=str_pad($sex, 1);
       $file_polstat[$n].=str_pad((new DateTime($guest['datnas']))->format('d/m/Y'), 10);// data nascita
+	  
+// ***>>>  country = cittadinanza ; coures = Stato di residenza ; coucard = Stato di rilascio documento  counas = Stato di nascita   <<<***
 
-      if ($guest['coucard']<>"IT"){
-        $cittadinanza="100000".gaz_dbi_get_row($gTables['country'], 'iso', $guest['coucard'])['istat_country'];
-        $luogorilascidoc=$cittadinanza;
+      if ($guest['country']<>"IT"){
+        $cittadinanza="100000".gaz_dbi_get_row($gTables['country'], 'iso', $guest['country'])['istat_country'];
       }else{
-        $cittadinanza="100000100";// Italia
-
+        $cittadinanza="100000100";// Italia					
+      }
+	  
+	  if ($guest['coucard']<>"IT"){
+        $luogorilascidoc="100000".gaz_dbi_get_row($gTables['country'], 'iso', $guest['coucard'])['istat_country'];
+      }else{
+        $luogorilascidoc="100000100";// Italia
+		
 		if($nall==0){// è il capogruppo
-        $name = strtoupper($guest['loccard']);
-        $query = "SELECT * FROM " . $gTables['municipalities'] . " WHERE UPPER(name) = '$name' LIMIT 1";
-        $res = gaz_dbi_query($query);
-        // Se c'è un risultato
-        if ($rowluodoc = gaz_dbi_fetch_assoc($res)) {
-            $luogorilascidoc=$rowluodoc['stat_code'];
-            if(strlen($luogorilascidoc)<>9){
-               echo "Luogo di rilascio documento. Il comune non ha un codice Polizia di Stato corretto; probabilmente è un comune soppresso:",$name;die;
-            }
-        } else {
-            echo "Luogo di rilascio documento.Il comune non esiste nella tabella municipalities:",$name;die;
-        }
+			$name = strtoupper($guest['loccard']);
+			$query = "SELECT * FROM " . $gTables['municipalities'] . " WHERE UPPER(name) = '$name' LIMIT 1";
+			$res = gaz_dbi_query($query);
+			// Se c'è un risultato
+			if ($rowluodoc = gaz_dbi_fetch_assoc($res)) {
+				$luogorilascidoc=$rowluodoc['stat_code'];
+				if(strlen($luogorilascidoc)<>9){
+				   echo "Luogo di rilascio documento. Il comune non ha un codice Polizia di Stato corretto; probabilmente è un comune soppresso:",$name;die;
+				}
+			} else {
+				echo "Luogo di rilascio documento.Il comune non esiste nella tabella municipalities:",$name;die;
+			}
 		}else{
 			$luogorilascidoc="";
-		}
+		}			
 
       }
-      if ($guest['country']<>"IT"){
-        $statoresidenza="100000".gaz_dbi_get_row($gTables['country'], 'iso', $guest['country'])['istat_country'];
+	  
+      if ($guest['coures']<>"IT"){
+        $statoresidenza="100000".gaz_dbi_get_row($gTables['country'], 'iso', $guest['coures'])['istat_country'];
         $luogoresidenza="";
       }else{
         $statoresidenza="100000100";// Italia
@@ -480,7 +488,7 @@ if (isset($_GET['XML']) and $msg == "") {
       $xml_output .= "\t\t\t</arrivo>\n";
       $fileUnico=0;
       if (strlen($id_polstat)>0){// FILE UNICO: se l'alloggio dispone di identificativo polstat lo aggiungo
-        $file_polstat[$n].=str_pad($id_polstat, 6);// id appartamento polstat
+        $file_polstat[$n].=str_pad($id_polstat, 6);// id appartamento polstat		
         $fileUnico=1;
       }
 	 $nall++;
@@ -591,7 +599,12 @@ foreach ($periodo as $date) {
             <!-- Pulsanti per aprire l'iframe -->
             <button class="openIframeBtn" data-url="API_istat.php?ref=<?php echo $xmlFileP ; ?>&id=<?php echo $id_artico_group; ?>" type="button">Invio a servizio ISTAT</button>
             <button class="openIframeBtn" data-url="API_Polizia.php?ref=<?php echo $path; ?>&id=<?php echo $id_artico_group; ?>&type=<?php echo $fileUnico; ?>&checkin=<?php echo date("Ymd",strtotime($datainizio)); ?>" type="button">Invio a Alloggiati Polizia</button>
-             <script>
+            <button class="openIframeBtn"
+					data-url="API_Polizia.php?ref=<?php echo urlencode($path); ?>&id=<?php echo $id_artico_group; ?>&action=ricevute&giorni=30"
+					type="button">
+				Scarica ricevute Alloggiati
+			</button>
+			 <script>
               // Percorsi dei file da scaricare
               const xmlFilePath = '<?php echo $xmlFileP; ?>';
               const txtFilePath = '<?php echo $path,"/polstat.txt"; ?>';

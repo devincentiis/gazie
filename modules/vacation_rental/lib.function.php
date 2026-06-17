@@ -1332,7 +1332,7 @@ function check_availability($start, $end, $house_code, $open_from = "", $open_to
     global $link, $azTables, $gTables;
 
     static $house_cache = []; // caching dei custom_field artico_group
-    static $availability_cache = []; // memoization per stesso periodo
+    static $availability_cache = []; // memorization per stesso periodo
 
     $cache_key = $house_code . "|" . $start . "|" . $end . "|" . $open_from . "|" . $open_to;
     if (isset($availability_cache[$cache_key])) {
@@ -1357,16 +1357,32 @@ function check_availability($start, $end, $house_code, $open_from = "", $open_to
 
     $start_ts = strtotime($start);
     $end_ts = strtotime($end);
+	
+	$advance_notice_days = 1; // giorni di preavviso per ogni alloggio
 
+	if ($advance_notice_days > 0) {
+
+		$min_start_ts = strtotime('today +' . $advance_notice_days . ' days');
+
+		if ($start_ts < $min_start_ts) {
+			$availability_cache[$cache_key] = 0;
+			return 0;
+		}
+	}
+	
     // --- 1) controllo apertura
-    $check_open = true;
-    if (intval($open_from) > 0) {
-        $open_from_ts = strtotime($open_from . "-" . date("Y", $start_ts));
-        $open_to_ts = strtotime($open_to . "-" . date("Y", $start_ts));
-        if ($start_ts < $open_from_ts || $start_ts > $open_to_ts) {
-            $check_open = false;
-        }
-    }
+    $check_open = true;   
+	if (intval($open_from) > 0) {
+		$year = date("Y", $start_ts);
+
+		$open_from_ts = strtotime($open_from . "-" . $year);
+		$open_to_ts = strtotime($open_to . "-" . $year);
+
+		if ($start_ts < $open_from_ts || $end_ts > $open_to_ts) {
+			$availability_cache[$cache_key] = 0;
+			return 0;
+		}
+	}
 
     if ($check_open) {
         // --- 2) batch query eventi

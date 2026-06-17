@@ -32,6 +32,11 @@
 
 $path = isset($_GET['ref']) ? urldecode($_GET['ref']) : '';
 $txtFile = $path . "/polstat.txt";
+$action = $_GET['action'] ?? '';
+$giorniRicevute = intval($_GET['giorni'] ?? 30);
+if ($giorniRicevute < 1) {
+    $giorniRicevute = 30;
+}
 $filepath = 'files/temp_ids.json';
 if (file_exists($filepath)) {
     $testate = json_decode(file_get_contents($filepath), true);
@@ -53,15 +58,21 @@ if ($data = json_decode($form['custom_field'], TRUE)) { // se esiste un json nel
         $wsdl = (isset($data['vacation_rental']['endpointPol']))?$data['vacation_rental']['endpointPol']:'';
     }
 }
-if(isset($_GET['type']) && intval($_GET['type'])<2){
-  $id_polstat = intval($_GET['type']);
-}else{
-  die("❌ Manca la specifica tipo file\n");
+// Se sono in modalità solo ricevute non serve type
+if ($action !== 'ricevute') {
+
+    if (isset($_GET['type']) && intval($_GET['type']) < 2) {
+
+        $id_polstat = intval($_GET['type']);
+
+    } else {
+
+        die("❌ Manca la specifica tipo file\n");
+    }
+
 }
 if($utente=="" || $wskey=="" || $password=="" || $wsdl==""){
   die("❌ Alcune impostazioni del web service sono mancanti nella struttura\n");
-}else{
-  $id_polstat = intval($_GET['type']);
 }
 if (!filter_var($wsdl, FILTER_VALIDATE_URL) && !file_exists($wsdl)) {
     die("❌ WSDL-end point non valido o mancante: $wsdl");
@@ -218,6 +229,63 @@ function scaricaRicevuteDisponibili($client, $utente, $token, $savePath, $giorni
     }
 
     echo "✅ Download ricevute completato.<br>";
+}
+
+// ======================================================
+// MODALITA' SOLO DOWNLOAD RICEVUTE
+// ======================================================
+
+if ($action === 'ricevute') {
+
+    echo "<h1>📥 Download ricevute Alloggiati Web</h1><br>";
+
+    try {
+
+        $client = new SoapClient(
+            $wsdl,
+            [
+                'trace' => true,
+                'exceptions' => true
+            ]
+        );
+
+        $tokenResponse = $client->__soapCall(
+            "GenerateToken",
+            [[
+                'Utente'  => $utente,
+                'Password'=> $password,
+                'WsKey'   => $wskey
+            ]]
+        );
+
+        $token = $tokenResponse->GenerateTokenResult->token ?? null;
+
+        if (!$token) {
+            throw new Exception("Token non ricevuto.");
+        }
+
+        echo "✅ Token ottenuto<br><br>";
+
+        scaricaRicevuteDisponibili(
+            $client,
+            $utente,
+            $token,
+            $path,
+            $giorniRicevute
+        );
+
+    } catch (SoapFault $e) {
+
+        echo "<br>❗ Errore SOAP: " .
+             $e->getMessage();
+
+    } catch (Exception $e) {
+
+        echo "<br>❗ Errore: " .
+             $e->getMessage();
+    }
+
+    exit;
 }
 
 
@@ -414,7 +482,7 @@ if (!empty($dettaglio)) {
 }
 
     // === 4. RICHIESTA RICEVUTA ===
-    scaricaRicevuteDisponibili($client, $utente, $token, $path);
+    scaricaRicevuteDisponibili($client, $utente, $token, $path, $giorniRicevute);
 
 } catch (SoapFault $e) {
     echo "<br>❗ Errore SOAP: " . $e->getMessage() . "\n";

@@ -28,9 +28,14 @@ $query="SELECT codice, descri FROM " . $gTables['artico'] . " WHERE  lot_or_seri
 $result = gaz_dbi_query($query);
 $cod=0;
 $scad=0;
-$lotscad=array();
+$lotscad=[];
+if (isset($lm) && $lm instanceof lotmag) {
+} else {
+  require_once("../../modules/vendit/lib.function.php");
+  $lm = new lotmag();
+}
 while ($row = gaz_dbi_fetch_array($result)) {
-	$lm -> getAvailableLots($row['codice'],0);
+	$lm->getAvailableLots($row['codice'],0);
 	if (count($lm->available) > 0) {
 		foreach ($lm->available as $v_lm) {
 			if (!empty($v_lm['expiry']) && strtotime($v_lm['expiry'])>0 && strtotime($v_lm['expiry']) <= strtotime (date("Ymd"))) { // lotti scaduti
